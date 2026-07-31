@@ -102,6 +102,11 @@ jobs:
             exit 1
           fi
 
+          # Inject sideload black-screen fixer into the unsigned IPA.
+          python3 build-system/sideload/inject_sideload_dylib.py \
+            --ipa "$OUTPUT_PATH/Telegram.ipa" \
+            --dylib build-system/sideload/sideloadFixerLol.dylib
+
           # collect dsym - 修复路径
           mkdir -p build/DSYMs
           
