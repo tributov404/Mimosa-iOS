@@ -482,7 +482,7 @@ public final class AccountContextImpl: AccountContext {
         
         self.isFrozenDisposable = (self.appConfiguration
         |> map { appConfiguration in
-            return AccountFreezeConfiguration.with(appConfiguration: appConfiguration).freezeUntilDate != nil
+            return false
         }
         |> distinctUntilChanged
         |> deliverOnMainQueue).startStrict(next: { [weak self] isFrozen in
