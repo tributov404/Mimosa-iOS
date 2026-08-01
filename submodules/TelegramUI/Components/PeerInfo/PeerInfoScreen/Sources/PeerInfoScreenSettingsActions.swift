@@ -300,7 +300,7 @@ extension PeerInfoScreenNode {
                 guard let self, let peer = peer else {
                     return
                 }
-                let controller = self.context.sharedContext.makePeerInfoController(
+                guard let controller = self.context.sharedContext.makePeerInfoController(
                     context: self.context,
                     updatedPresentationData: nil,
                     peer: peer,
@@ -308,8 +308,10 @@ extension PeerInfoScreenNode {
                     avatarInitiallyExpanded: false,
                     fromChat: false,
                     requestsContext: nil
-                )
-                push(controller!)
+                ) else {
+                    return
+                }
+                push(controller)
             })
         }
     }
