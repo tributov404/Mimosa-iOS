@@ -309,7 +309,7 @@ extension PeerInfoScreenNode {
                     fromChat: false,
                     requestsContext: nil
                 )
-                push(controller)
+                push(controller!)
             })
         }
     }
