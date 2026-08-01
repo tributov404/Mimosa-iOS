@@ -337,16 +337,8 @@ public struct AccountFreezeConfiguration {
     }
     
     public static func with(appConfiguration: AppConfiguration) -> AccountFreezeConfiguration {
-        let defaultValue = self.defaultValue
-        if let data = appConfiguration.data {
-            return AccountFreezeConfiguration(
-                freezeSinceDate: (data["freeze_since_date"] as? Double).flatMap(Int32.init) ?? defaultValue.freezeSinceDate,
-                freezeUntilDate: (data["freeze_until_date"] as? Double).flatMap(Int32.init) ?? defaultValue.freezeUntilDate,
-                freezeAppealUrl: data["freeze_appeal_url"] as? String ?? defaultValue.freezeAppealUrl
-            )
-        } else {
-            return defaultValue
-        }
+        // Client-side freeze UI disabled: ignore server freeze_* appConfig keys.
+        return self.defaultValue
     }
 }
 
