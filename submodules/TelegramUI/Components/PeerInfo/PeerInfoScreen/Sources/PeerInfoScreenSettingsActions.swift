@@ -295,24 +295,21 @@ extension PeerInfoScreenNode {
                 push(self.context.sharedContext.makeStarsTransactionsScreen(context: self.context, starsContext: tonContext))
             }
         case .gifts:
-            let _ = (self.context.engine.data.get(TelegramEngine.EngineData.Item.Peer.Peer(id: self.context.account.peerId))
-            |> deliverOnMainQueue).start(next: { [weak self] peer in
-                guard let self, let peer = peer else {
-                    return
-                }
-                guard let controller = self.context.sharedContext.makePeerInfoController(
-                    context: self.context,
-                    updatedPresentationData: nil,
-                    peer: peer,
-                    mode: .myProfileGifts,
-                    avatarInitiallyExpanded: false,
-                    fromChat: false,
-                    requestsContext: nil
-                ) else {
-                    return
-                }
+            guard let peer = self.data?.peer else {
+                return
+            }
+            let controller = self.context.sharedContext.makePeerInfoController(
+                context: self.context,
+                updatedPresentationData: nil,
+                peer: peer,
+                mode: .myProfileGifts,
+                avatarInitiallyExpanded: false,
+                fromChat: false,
+                requestsContext: nil
+            )
+            if let controller = controller {
                 push(controller)
-            })
+            }
         }
     }
 
