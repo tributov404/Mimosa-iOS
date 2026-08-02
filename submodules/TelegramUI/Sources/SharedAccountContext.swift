@@ -4556,6 +4556,8 @@ private func peerInfoControllerImpl(context: AccountContext, updatedPresentation
             switchToGiftsTarget = .generic
         case .upgradableGifts:
             switchToGiftsTarget = .upgradable
+        case .myProfileGifts:
+            switchToGiftsTarget = .generic
         case .groupsInCommon:
             switchToGroupsInCommon = true
         case let .storyAlbum(id):
