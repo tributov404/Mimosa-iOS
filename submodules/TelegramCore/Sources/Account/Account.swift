@@ -344,7 +344,7 @@ public func accountWithId(accountManager: AccountManager<TelegramAccountManagerT
                             }
                         }
                         
-                        // Must match Network.swift seedAddressList + TELESRV_DC (jpgram is DC 2).
+                        // Must match Network.swift seedAddressList + TELESRV_DC (PleasureGram is DC 2).
                         let initialDatacenterId: Int = 2
                         
                         return initializedNetwork(accountId: id, arguments: networkArguments, supplementary: supplementary, datacenterId: initialDatacenterId, keychain: keychain, basePath: path, testingEnvironment: beginWithTestingEnvironment, languageCode: localizationSettings?.primaryComponent.languageCode, proxySettings: proxySettings, networkSettings: networkSettings, phoneNumber: nil, useRequestTimeoutTimers: useRequestTimeoutTimers, appConfiguration: appConfig)

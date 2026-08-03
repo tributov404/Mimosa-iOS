@@ -629,7 +629,7 @@ plist_fragment(
     template =
     """
     <key>CFBundleDisplayName</key>
-    <string>Jpgram</string>
+    <string>PleasureGram</string>
     """
 )
 
@@ -1568,11 +1568,11 @@ plist_fragment(
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
     <key>CFBundleDisplayName</key>
-    <string>Jpgram</string>
+    <string>PleasureGram</string>
     <key>CFBundleIdentifier</key>
     <string>{telegram_bundle_id}</string>
     <key>CFBundleName</key>
-    <string>Jpgram</string>
+    <string>PleasureGram</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
