@@ -45,6 +45,17 @@ jobs:
             --destinationProfiles=build-system/fake-codesigning/profiles \
             --certsPath=build-system/fake-codesigning/certs
 
+      - name: Restore Bazel disk cache
+        uses: actions/cache@v4
+        with:
+          path: /Users/Shared/telegram-bazel-cache
+          # Keep the cache key stable for a commit, while allowing a newer commit to
+          # restore the most recent cache and save its newly produced artifacts.
+          key: bazel-${{ runner.os }}-${{ hashFiles('versions.json', 'MODULE.bazel.lock', '.bazelrc') }}-${{ github.ref_name }}-${{ github.sha }}
+          restore-keys: |
+            bazel-${{ runner.os }}-${{ hashFiles('versions.json', 'MODULE.bazel.lock', '.bazelrc') }}-${{ github.ref_name }}-
+            bazel-${{ runner.os }}-${{ hashFiles('versions.json', 'MODULE.bazel.lock', '.bazelrc') }}-
+
       - name: Build the App
         run: |
           set -x
@@ -52,8 +63,10 @@ jobs:
           # source code paths are included in the final binary, so we need to make them stable across builds
           SOURCE_DIR=/Users/Shared/telegram-ios
 
-          # use canonical bazel root
+          # Keep both Bazel's output root and its action cache stable between CI runs.
           BAZEL_USER_ROOT="/private/var/tmp/_bazel_containerhost"
+          BAZEL_CACHE_DIR="/Users/Shared/telegram-bazel-cache"
+          mkdir -p "$BAZEL_CACHE_DIR"
 
           cd $SOURCE_DIR
 
@@ -69,6 +82,7 @@ jobs:
           python3 build-system/Make/ImportCertificates.py --path build-system/fake-codesigning/certs
           python3 -u build-system/Make/Make.py \
             --bazelUserRoot="$BAZEL_USER_ROOT" \
+            --cacheDir="$BAZEL_CACHE_DIR" \
             build \
             --configurationPath="build-system/appstore-configuration.json" \
             --codesigningInformationPath=build-system/fake-codesigning \
