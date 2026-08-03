@@ -151,10 +151,6 @@ func settingsItems(data: PeerInfoScreenData?, context: AccountContext, presentat
             interaction.openSettings(.profile)
         }))
         
-        items[.myProfile]!.append(PeerInfoScreenDisclosureItem(id: 1, text: presentationData.strings.Gift_Options_Gift_Filter_MyGifts, icon: PresentationResourcesSettings.premiumGift, action: {
-            interaction.openSettings(.gifts)
-        }))
-        
         if !settings.proxySettings.servers.isEmpty {
             let proxyType: String
             if settings.proxySettings.enabled, let activeServer = settings.proxySettings.activeServer {

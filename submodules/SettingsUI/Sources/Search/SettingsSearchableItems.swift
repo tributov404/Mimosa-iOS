@@ -1068,34 +1068,6 @@ private func myProfileSearchableItems(context: AccountContext) -> [SettingsSearc
     
     items.append(
         SettingsSearchableItem(
-            id: "my-profile/gifts",
-            title: strings.Gift_Options_Gift_Filter_MyGifts,
-            alternate: [],
-            icon: .myProfile,
-            breadcrumbs: [strings.Settings_MyProfile],
-            present: { context, _, present in
-                let _ = (context.engine.data.get(TelegramEngine.EngineData.Item.Peer.Peer(id: context.account.peerId))
-                |> deliverOnMainQueue).start(next: { peer in
-                    guard let peer = peer else {
-                        return
-                    }
-                    let controller = context.sharedContext.makePeerInfoController(
-                        context: context,
-                        updatedPresentationData: nil,
-                        peer: peer,
-                        mode: .myProfileGifts,
-                        avatarInitiallyExpanded: false,
-                        fromChat: false,
-                        requestsContext: nil
-                    )
-                    present(.push, controller)
-                })
-            }
-        )
-    )
-        
-    items.append(
-        SettingsSearchableItem(
             id: "my-profile/posts",
             title: strings.Settings_MyStories,
             alternate: [],
