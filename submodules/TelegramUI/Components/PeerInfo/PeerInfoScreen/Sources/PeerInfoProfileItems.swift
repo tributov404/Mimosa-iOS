@@ -382,12 +382,6 @@ func infoItems(
             }
         }
 
-        if isMyProfile {
-            items[currentPeerInfoSection]!.append(PeerInfoScreenDisclosureItem(id: 9999, text: presentationData.strings.Gift_Options_Gift_Filter_MyGifts, icon: PresentationResourcesSettings.premiumGift, action: {
-                interaction.openSettings(.gifts)
-            }))
-        }
-        
         if !isMyProfile {
             if !data.isContact, user.botInfo == nil {
                 items[currentPeerInfoSection]!.append(PeerInfoScreenActionItem(id: ItemAddToContacts, text: presentationData.strings.PeerInfo_AddToContacts, action: {

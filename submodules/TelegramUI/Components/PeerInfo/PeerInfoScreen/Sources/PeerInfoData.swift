@@ -1546,10 +1546,8 @@ func peerInfoScreenData(
                 var availablePanes = availablePanes
                 if isMyProfile {
                     availablePanes?.insert(.stories, at: 0)
-                    if availablePanes != nil, profileGiftsContext != nil, let cachedData = peerView.cachedData as? CachedUserData {
-                        if (cachedData.starGiftsCount ?? 0) > 0 || forceHasGifts {
-                            availablePanes?.insert(.gifts, at: 1)
-                        }
+                    if availablePanes != nil, profileGiftsContext != nil {
+                        availablePanes?.insert(.gifts, at: 1)
                     }
                     if let hasStoryArchive, hasStoryArchive {
                         availablePanes?.append(.storyArchive)
