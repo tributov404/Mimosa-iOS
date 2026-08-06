@@ -157,13 +157,13 @@ public struct PremiumConfiguration {
     public static var defaultValue: PremiumConfiguration {
         return PremiumConfiguration(
             isPremiumDisabled: false,
-            areStarsDisabled: true,
+            areStarsDisabled: false,
             subscriptionManagementUrl: "",
             showPremiumGiftInAttachMenu: false,
             showPremiumGiftInTextField: false,
             giveawayGiftsPurchaseAvailable: false,
-            starsGiftsPurchaseAvailable: false,
-            starGiftsPurchaseBlocked: true,
+            starsGiftsPurchaseAvailable: true,
+            starGiftsPurchaseBlocked: false,
             boostsPerGiftCount: 3,
             audioTransciptionTrialMaxDuration: 300,
             audioTransciptionTrialCount: 2,
