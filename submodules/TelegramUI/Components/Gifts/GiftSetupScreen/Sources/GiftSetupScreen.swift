@@ -268,7 +268,7 @@ private final class GiftSetupScreenComponent: Component {
         
         @objc private func multiplierTapGesture(_ recognizer: UITapGestureRecognizer) {
             if case .ended = recognizer.state {
-                let quantities = [1, 10, 20]
+                let quantities = [1, 10, 20, 100]
                 if let currentIndex = quantities.firstIndex(of: self.giftQuantity) {
                     self.giftQuantity = quantities[(currentIndex + 1) % quantities.count]
                 } else {
@@ -1192,7 +1192,7 @@ private final class GiftSetupScreenComponent: Component {
                         guard let self else {
                             return
                         }
-                        let quantities = [1, 10, 20]
+                        let quantities = [1, 10, 20, 100]
                         if let currentIndex = quantities.firstIndex(of: self.giftQuantity) {
                             self.giftQuantity = quantities[(currentIndex + 1) % quantities.count]
                         } else {
