@@ -610,7 +610,7 @@ private final class GiftSetupScreenComponent: Component {
                             
                             if case let .starGift(starGift, _) = component.subject, let perUserLimit = starGift.perUserLimit {
                                 Queue.mainQueue().after(0.5) {
-                                    let remains = max(0, perUserLimit.remains - quantity)
+                                    let remains = max(0, perUserLimit.remains - Int32(quantity))
                                     let text: String
                                     if remains == 0 {
                                         text = presentationData.strings.Gift_Send_Limited_Success_Text_None
