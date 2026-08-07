@@ -103,6 +103,7 @@ private final class GiftSetupScreenComponent: Component {
         private let backgroundHandleView: UIImageView
         
         private let closeButton = ComponentView<Empty>()
+        private let multiplierButton = ComponentView<Empty>()
         private var doneButton: ComponentView<Empty>?
         
         private let remainingCount = ComponentView<Empty>()
@@ -145,6 +146,7 @@ private final class GiftSetupScreenComponent: Component {
         private var hideName = false
         private var includeUpgrade = false
         private var payWithStars = false
+        private var giftQuantity: Int = 1
         
         private var inProgress = false
                         
@@ -262,6 +264,18 @@ private final class GiftSetupScreenComponent: Component {
             
             let result = super.hitTest(point, with: event)
             return result
+        }
+        
+        @objc private func multiplierTapGesture(_ recognizer: UITapGestureRecognizer) {
+            if case .ended = recognizer.state {
+                let quantities = [1, 10, 20]
+                if let currentIndex = quantities.firstIndex(of: self.giftQuantity) {
+                    self.giftQuantity = quantities[(currentIndex + 1) % quantities.count]
+                } else {
+                    self.giftQuantity = 1
+                }
+                self.state?.updated(transition: .spring(duration: 0.3))
+            }
         }
         
         @objc private func dimTapGesture(_ recognizer: UITapGestureRecognizer) {
@@ -384,7 +398,7 @@ private final class GiftSetupScreenComponent: Component {
             }
             let entities = generateChatInputTextEntities(textInputText)
             let purpose: AppStoreTransactionPurpose = .giftCode(peerIds: [component.peerId], boostPeer: nil, currency: currency, amount: amount, text: textInputText.string, entities: entities)
-            let quantity: Int32 = 1
+            let quantity: Int32 = Int32(self.giftQuantity)
                         
             let completion = component.completion
             
@@ -525,145 +539,157 @@ private final class GiftSetupScreenComponent: Component {
                 self.state?.updated()
                 
                 let completion = component.completion
+                let quantity = self.giftQuantity
                 
-                let signal = BotCheckoutController.InputData.fetch(context: component.context, source: source)
-                |> `catch` { error -> Signal<BotCheckoutController.InputData, SendBotPaymentFormError> in
-                    switch error {
-                    case .disallowedStarGifts:
-                        return .fail(.disallowedStarGift)
-                    case .starGiftsUserLimit:
-                        return .fail(.starGiftUserLimit)
-                    default:
-                        return .fail(.generic)
-                    }
-                }
-                |> mapToSignal { inputData -> Signal<SendBotPaymentResult, SendBotPaymentFormError> in
-                    return component.context.engine.payments.sendStarsPaymentForm(formId: inputData.form.id, source: source)
-                }
-                |> deliverOnMainQueue
-                                
-                let _ = signal.start(next: { [weak self] result in
-                    guard let self, let controller = self.environment?.controller(), let navigationController = controller.navigationController as? NavigationController else {
-                        return
-                    }
-
-                    if peerId.namespace == Namespaces.Peer.CloudChannel, case let .starGift(starGift, _) = component.subject {
-                        var controllers = navigationController.viewControllers
-                        controllers = controllers.filter { !($0 is GiftSetupScreen) && !($0 is GiftOptionsScreenProtocol) }
-                        navigationController.setViewControllers(controllers, animated: true)
-                        
-                        let tooltipController = UndoOverlayController(
-                            presentationData: presentationData,
-                            content: .sticker(
-                                context: context,
-                                file: starGift.file,
-                                loop: true,
-                                title: nil,
-                                text: presentationData.strings.Gift_Send_Success(self.peerMap[peerId]?.compactDisplayTitle ?? "", presentationData.strings.Gift_Send_Success_Stars(Int32(clamping: starGift.price))).string,
-                                undoText: nil,
-                                customAction: nil
-                            ),
-                            action: { _ in return true }
-                        )
-                        (navigationController.viewControllers.last as? ViewController)?.present(tooltipController, in: .current)
-                        
-                        navigationController.view.addSubview(ConfettiView(frame: navigationController.view.bounds))
-                    } else if peerId.namespace == Namespaces.Peer.CloudUser {
-                        var controllers = navigationController.viewControllers
-                        controllers = controllers.filter { !($0 is GiftSetupScreen) && !($0 is GiftOptionsScreenProtocol) && !($0 is PeerInfoScreen) && !($0 is ContactSelectionController) }
-                        var foundController = false
-                        for controller in controllers.reversed() {
-                            if let chatController = controller as? ChatController, case .peer(id: component.peerId) = chatController.chatLocation {
-                                chatController.hintPlayNextOutgoingGift()
-                                foundController = true
-                                break
-                            }
-                        }
-                        if !foundController {
-                            let chatController = component.context.sharedContext.makeChatController(context: component.context, chatLocation: .peer(id: component.peerId), subject: nil, botStart: nil, mode: .standard(.default), params: nil)
-                            chatController.hintPlayNextOutgoingGift()
-                            controllers.append(chatController)
-                        }
-                        navigationController.setViewControllers(controllers, animated: true)
-                        
-                        if case let .starGift(starGift, _) = component.subject, let perUserLimit = starGift.perUserLimit {
-                            Queue.mainQueue().after(0.5) {
-                                let remains = max(0, perUserLimit.remains - 1)
-                                let text: String
-                                if remains == 0 {
-                                    text = presentationData.strings.Gift_Send_Limited_Success_Text_None
-                                } else {
-                                    text = presentationData.strings.Gift_Send_Limited_Success_Text(remains)
-                                }
-                                let tooltipController = UndoOverlayController(
-                                    presentationData: presentationData,
-                                    content: .sticker(
-                                        context: context,
-                                        file: starGift.file,
-                                        loop: true,
-                                        title: presentationData.strings.Gift_Send_Limited_Success_Title,
-                                        text: text,
-                                        undoText: nil,
-                                        customAction: nil
-                                    ),
-                                    position: .top,
-                                    action: { _ in return true }
-                                )
-                                (navigationController.viewControllers.last as? ViewController)?.present(tooltipController, in: .current)
-                            }
+                func sendGift(attempt: Int) {
+                    let signal = BotCheckoutController.InputData.fetch(context: component.context, source: source)
+                    |> `catch` { error -> Signal<BotCheckoutController.InputData, SendBotPaymentFormError> in
+                        switch error {
+                        case .disallowedStarGifts:
+                            return .fail(.disallowedStarGift)
+                        case .starGiftsUserLimit:
+                            return .fail(.starGiftUserLimit)
+                        default:
+                            return .fail(.generic)
                         }
                     }
-                    
-                    if let completion {
-                        completion()
-                        
-                        if let controller = self.environment?.controller() {
-                            controller.dismiss()
-                        }
+                    |> mapToSignal { inputData -> Signal<SendBotPaymentResult, SendBotPaymentFormError> in
+                        return component.context.engine.payments.sendStarsPaymentForm(formId: inputData.form.id, source: source)
                     }
+                    |> deliverOnMainQueue
                     
-                    Queue.mainQueue().after(2.5) {
-                        starsContext.load(force: true)
-                    }
-                }, error: { [weak self] error in
-                    guard let self, let controller = self.environment?.controller() else {
-                        return
-                    }
-                    
-                    self.inProgress = false
-                    self.state?.updated()
-                    
-                    var errorText: String?
-                    switch error {
-                    case .starGiftUserLimit:
-                        if let perUserLimit, let giftFile {
-                            let text = presentationData.strings.Gift_Options_Gift_BuyLimitReached(perUserLimit)
-                            let undoController = UndoOverlayController(
-                                presentationData: presentationData,
-                                content: .sticker(context: component.context, file: giftFile, loop: true, title: nil, text: text, undoText: nil, customAction: nil),
-                                elevatedLayout: true,
-                                action: { _ in return false }
-                            )
-                            controller.present(undoController, in: .current)
+                    let _ = signal.start(next: { [weak self] result in
+                        guard let self, let controller = self.environment?.controller(), let navigationController = controller.navigationController as? NavigationController else {
                             return
                         }
-                        return
-                    case .starGiftOutOfStock:
-                        errorText = presentationData.strings.Gift_Send_ErrorOutOfStock
-                    case .disallowedStarGift:
-                        errorText = presentationData.strings.Gift_Send_ErrorDisallowed(self.peerMap[peerId]?.compactDisplayTitle ?? "").string
-                    default:
-                        errorText = presentationData.strings.Gift_Send_ErrorUnknown
-                    }
-                    
-                    if let errorText = errorText {
-                        let alertController = textAlertController(context: component.context, title: nil, text: errorText, actions: [TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_OK, action: {})], parseMarkdown: true)
-                        controller.present(alertController, in: .window(.root))
-                    }
-                })
+                        
+                        if attempt < quantity - 1 {
+                            sendGift(attempt: attempt + 1)
+                            return
+                        }
+
+                        if peerId.namespace == Namespaces.Peer.CloudChannel, case let .starGift(starGift, _) = component.subject {
+                            var controllers = navigationController.viewControllers
+                            controllers = controllers.filter { !($0 is GiftSetupScreen) && !($0 is GiftOptionsScreenProtocol) }
+                            navigationController.setViewControllers(controllers, animated: true)
+                            
+                            let totalStars = Int32(clamping: starGift.price * Int64(quantity))
+                            let tooltipController = UndoOverlayController(
+                                presentationData: presentationData,
+                                content: .sticker(
+                                    context: context,
+                                    file: starGift.file,
+                                    loop: true,
+                                    title: nil,
+                                    text: presentationData.strings.Gift_Send_Success(self.peerMap[peerId]?.compactDisplayTitle ?? "", presentationData.strings.Gift_Send_Success_Stars(totalStars)).string,
+                                    undoText: nil,
+                                    customAction: nil
+                                ),
+                                action: { _ in return true }
+                            )
+                            (navigationController.viewControllers.last as? ViewController)?.present(tooltipController, in: .current)
+                            
+                            navigationController.view.addSubview(ConfettiView(frame: navigationController.view.bounds))
+                        } else if peerId.namespace == Namespaces.Peer.CloudUser {
+                            var controllers = navigationController.viewControllers
+                            controllers = controllers.filter { !($0 is GiftSetupScreen) && !($0 is GiftOptionsScreenProtocol) && !($0 is PeerInfoScreen) && !($0 is ContactSelectionController) }
+                            var foundController = false
+                            for controller in controllers.reversed() {
+                                if let chatController = controller as? ChatController, case .peer(id: component.peerId) = chatController.chatLocation {
+                                    chatController.hintPlayNextOutgoingGift()
+                                    foundController = true
+                                    break
+                                }
+                            }
+                            if !foundController {
+                                let chatController = component.context.sharedContext.makeChatController(context: component.context, chatLocation: .peer(id: component.peerId), subject: nil, botStart: nil, mode: .standard(.default), params: nil)
+                                chatController.hintPlayNextOutgoingGift()
+                                controllers.append(chatController)
+                            }
+                            navigationController.setViewControllers(controllers, animated: true)
+                            
+                            if case let .starGift(starGift, _) = component.subject, let perUserLimit = starGift.perUserLimit {
+                                Queue.mainQueue().after(0.5) {
+                                    let remains = max(0, perUserLimit.remains - quantity)
+                                    let text: String
+                                    if remains == 0 {
+                                        text = presentationData.strings.Gift_Send_Limited_Success_Text_None
+                                    } else {
+                                        text = presentationData.strings.Gift_Send_Limited_Success_Text(remains)
+                                    }
+                                    let tooltipController = UndoOverlayController(
+                                        presentationData: presentationData,
+                                        content: .sticker(
+                                            context: context,
+                                            file: starGift.file,
+                                            loop: true,
+                                            title: presentationData.strings.Gift_Send_Limited_Success_Title,
+                                            text: text,
+                                            undoText: nil,
+                                            customAction: nil
+                                        ),
+                                        position: .top,
+                                        action: { _ in return true }
+                                    )
+                                    (navigationController.viewControllers.last as? ViewController)?.present(tooltipController, in: .current)
+                                }
+                            }
+                        }
+                        
+                        if let completion {
+                            completion()
+                            
+                            if let controller = self.environment?.controller() {
+                                controller.dismiss()
+                            }
+                        }
+                        
+                        Queue.mainQueue().after(2.5) {
+                            starsContext.load(force: true)
+                        }
+                    }, error: { [weak self] error in
+                        guard let self, let controller = self.environment?.controller() else {
+                            return
+                        }
+                        
+                        self.inProgress = false
+                        self.state?.updated()
+                        
+                        var errorText: String?
+                        switch error {
+                        case .starGiftUserLimit:
+                            if let perUserLimit, let giftFile {
+                                let text = presentationData.strings.Gift_Options_Gift_BuyLimitReached(perUserLimit)
+                                let undoController = UndoOverlayController(
+                                    presentationData: presentationData,
+                                    content: .sticker(context: component.context, file: giftFile, loop: true, title: nil, text: text, undoText: nil, customAction: nil),
+                                    elevatedLayout: true,
+                                    action: { _ in return false }
+                                )
+                                controller.present(undoController, in: .current)
+                                return
+                            }
+                            return
+                        case .starGiftOutOfStock:
+                            errorText = presentationData.strings.Gift_Send_ErrorOutOfStock
+                        case .disallowedStarGift:
+                            errorText = presentationData.strings.Gift_Send_ErrorDisallowed(self.peerMap[peerId]?.compactDisplayTitle ?? "").string
+                        default:
+                            errorText = presentationData.strings.Gift_Send_ErrorUnknown
+                        }
+                        
+                        if let errorText = errorText {
+                            let alertController = textAlertController(context: component.context, title: nil, text: errorText, actions: [TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_OK, action: {})], parseMarkdown: true)
+                            controller.present(alertController, in: .window(.root))
+                        }
+                    })
+                }
+                
+                sendGift(attempt: 0)
             }
             
-            if starsState.balance < StarsAmount(value: finalPrice, nanos: 0) {
+            let requiredStars = finalPrice * Int64(self.giftQuantity)
+            if starsState.balance < StarsAmount(value: requiredStars, nanos: 0) {
                 let _ = (self.optionsPromise.get()
                 |> filter { $0 != nil }
                 |> take(1)
@@ -675,7 +701,7 @@ private final class GiftSetupScreenComponent: Component {
                         context: component.context,
                         starsContext: starsContext,
                         options: options ?? [],
-                        purpose: .starGift(peerId: component.peerId, requiredStars: finalPrice),
+                        purpose: .starGift(peerId: component.peerId, requiredStars: requiredStars),
                         targetPeerId: nil,
                         customTheme: nil,
                         completion: { [weak self, weak starsContext] stars in
@@ -1145,6 +1171,45 @@ private final class GiftSetupScreenComponent: Component {
                     self.navigationBarContainer.addSubview(closeButtonView)
                 }
                 transition.setFrame(view: closeButtonView, frame: closeButtonFrame)
+            }
+            
+            let multiplierText = "\(self.giftQuantity)x"
+            let multiplierButtonSize = self.multiplierButton.update(
+                transition: .immediate,
+                component: AnyComponent(GlassBarButtonComponent(
+                    size: CGSize(width: 44.0, height: 44.0),
+                    backgroundColor: nil,
+                    isDark: environment.theme.overallDarkAppearance,
+                    state: .glass,
+                    component: AnyComponentWithIdentity(id: "multiplier", component: AnyComponent(
+                        MultilineTextComponent(text: .plain(NSAttributedString(
+                            string: multiplierText,
+                            font: Font.semibold(15.0),
+                            textColor: environment.theme.chat.inputPanel.panelControlColor
+                        )))
+                    )),
+                    action: { [weak self] _ in
+                        guard let self else {
+                            return
+                        }
+                        let quantities = [1, 10, 20]
+                        if let currentIndex = quantities.firstIndex(of: self.giftQuantity) {
+                            self.giftQuantity = quantities[(currentIndex + 1) % quantities.count]
+                        } else {
+                            self.giftQuantity = 1
+                        }
+                        self.state?.updated(transition: .spring(duration: 0.3))
+                    }
+                )),
+                environment: {},
+                containerSize: CGSize(width: 44.0, height: 44.0)
+            )
+            let multiplierButtonFrame = CGRect(origin: CGPoint(x: availableSize.width - rawSideInset - 16.0 - multiplierButtonSize.width, y: 16.0), size: multiplierButtonSize)
+            if let multiplierButtonView = self.multiplierButton.view {
+                if multiplierButtonView.superview == nil {
+                    self.navigationBarContainer.addSubview(multiplierButtonView)
+                }
+                transition.setFrame(view: multiplierButtonView, frame: multiplierButtonFrame)
             }
             
             if environment.inputHeight > 0.0  {
@@ -1877,7 +1942,8 @@ private final class GiftSetupScreenComponent: Component {
             switch component.subject {
             case let .premium(product):
                 if self.payWithStars, let starsPrice = product.starsPrice {
-                    let amountString = presentationStringsFormattedNumber(Int32(starsPrice), presentationData.dateTimeFormat.groupingSeparator)
+                    let totalStars = starsPrice * Int64(self.giftQuantity)
+                    let amountString = presentationStringsFormattedNumber(Int32(totalStars), presentationData.dateTimeFormat.groupingSeparator)
                     buttonString = "\(environment.strings.Gift_Send_Send)  # \(amountString)"
                 } else {
                     let amountString = product.price
@@ -1888,10 +1954,11 @@ private final class GiftSetupScreenComponent: Component {
                 if self.includeUpgrade, let upgradePrice = starGift.upgradeStars {
                     finalPrice += upgradePrice
                 }
-                let amountString = presentationStringsFormattedNumber(Int32(finalPrice), presentationData.dateTimeFormat.groupingSeparator)
+                let totalStars = finalPrice * Int64(self.giftQuantity)
+                let amountString = presentationStringsFormattedNumber(Int32(totalStars), presentationData.dateTimeFormat.groupingSeparator)
                 let buttonTitle = isSelfGift ? environment.strings.Gift_Send_Buy : environment.strings.Gift_Send_Send
                 buttonString = "\(buttonTitle)  # \(amountString)"
-                if let availability = starGift.availability, availability.remains == 0 {
+                if let availability = starGift.availability, availability.remains < Int32(self.giftQuantity) {
                     buttonIsEnabled = false
                 }
             }
